@@ -5,6 +5,8 @@ use App\Http\Controllers\Api\ContratoController;
 use App\Http\Controllers\Api\EspacioController;
 use App\Http\Controllers\Api\IncidenciaController;
 use App\Http\Controllers\Api\LocatarioController;
+use App\Http\Controllers\Api\FidelizacionController;
+use App\Http\Controllers\Api\ReporteController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -35,4 +37,10 @@ Route::middleware('auth:api')->group(function () {
     Route::patch('incidencias/{incidencia}/estado', [IncidenciaController::class, 'cambiarEstado']);
     Route::delete('incidencias/{incidencia}', [IncidenciaController::class, 'destroy'])
         ->middleware('role:Administrador');
+
+    // Reportes y Fidelización
+    Route::get('/reportes/locatarios/pdf', [ReporteController::class, 'pdfLocatarios']);
+    Route::get('/reportes/locatarios/excel', [ReporteController::class, 'excelLocatarios']);
+    Route::get('/reportes/incidencias/pdf', [ReporteController::class, 'pdfIncidencias']);
+    Route::get('/fidelizacion', [FidelizacionController::class, 'index']);
 });
