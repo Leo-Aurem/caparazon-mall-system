@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>Reporte de Incidencias</title>
     <style>
-        body { font-family: sans-serif; }
+        body { font-family: 'DejaVu Sans', sans-serif; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
         th { background-color: #f4f4f4; }
