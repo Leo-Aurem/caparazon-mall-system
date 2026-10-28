@@ -10,8 +10,17 @@ class IncidenciaController extends Controller
 {
     private array $flujo = ['Pendiente'=>'Asignada','Asignada'=>'En proceso','En proceso'=>'Resuelta','Resuelta'=>'Cerrada'];
 
-    public function index() { return Incidencia::with('espacio','reportador','asignado')->paginate(20); }
-    public function store(Request $r) {
+    public function index()
+    {
+        $user = auth('api')->user();
+        $query = Incidencia::with('espacio', 'reportador', 'asignado');
+
+        if ($user->role === 'Locatario') {
+            $query->where('reportado_por', $user->id);
+        }
+
+        return $query->paginate(20);
+    }    public function store(Request $r) {
         $d = $r->validate(['titulo'=>'required','descripcion'=>'required','espacio_id'=>'nullable|exists:espacios,id','asignado_a'=>'nullable|exists:users,id','prioridad'=>'in:Baja,Media,Alta,Critica']);
         $d['reportado_por'] = auth('api')->id();
         return response()->json(Incidencia::create($d), 201);
