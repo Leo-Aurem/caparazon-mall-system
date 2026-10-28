@@ -10,12 +10,15 @@ use App\Http\Controllers\Api\ReporteController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/chat', [App\Http\Controllers\Api\ChatController::class, 'chat']);
 Route::get('/directorio', [LocatarioController::class, 'index']); // Público
 
 Route::middleware('auth:api')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
+    Route::get('/notificaciones', [App\Http\Controllers\Api\NotificacionController::class, 'index']);
+    Route::post('/notificaciones/leer', [App\Http\Controllers\Api\NotificacionController::class, 'leer']);
 
     // Dashboard: admin, supervisor, operador, seguridad
     Route::middleware('role:Administrador,Supervisor,Operador,Seguridad')->get('/dashboard-kpis', function () {
@@ -48,9 +51,14 @@ Route::middleware('auth:api')->group(function () {
         Route::delete('incidencias/{incidencia}', [IncidenciaController::class, 'destroy']);
     });
 
-    // Fidelización: operador, admin
+        // Fidelización
     Route::middleware('role:Administrador,Operador')->group(function () {
-        Route::get('/fidelizacion', [FidelizacionController::class, 'index']);
+        Route::get('/fidelizacion/resumen', [FidelizacionController::class, 'resumen']);
+        Route::post('/fidelizacion/recalcular', [FidelizacionController::class, 'recalcular']);
+        Route::get('/fidelizacion/visitantes', [FidelizacionController::class, 'listaVisitantes']);
+        Route::post('/fidelizacion/campanas', [FidelizacionController::class, 'crearCampana']);
+        Route::post('/fidelizacion/campanas/{campana}/generar-cupones', [FidelizacionController::class, 'generarCupones']);
+        Route::post('/fidelizacion/cupones/canjear', [FidelizacionController::class, 'canjearCupon']);
     });
 
     // Reportes y Administración: solo admin

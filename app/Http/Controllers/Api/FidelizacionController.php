@@ -1,40 +1,94 @@
 <?php
-
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Locatario;
+use App\Models\Visitante;
+use App\Models\Campana;
+use App\Models\Cupone;
+use App\Services\SegmentacionService;
+use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class FidelizacionController extends Controller
 {
-    public function index()
+    public function resumen()
     {
-        $locatarios = Locatario::all();
+        return response()->json([
+            'visitantes' => Visitante::count(),
+            'vip' => Visitante::where('segmento', 'vip')->count(),
+            'frecuentes' => Visitante::where('segmento', 'frecuente')->count(),
+            'en_riesgo' => Visitante::where('segmento', 'en_riesgo')->count(),
+            'nuevos' => Visitante::where('segmento', 'nuevo')->count(),
+            'cupones_activos' => Cupone::where('estado', 'activo')->count(),
+        ]);
+    }
+
+    public function recalcular(SegmentacionService $service)
+    {
+        $service->recalcular();
+        return response()->json(['message' => 'Segmentaci贸n recalculada con 茅xito']);
+    }
+
+    public function listaVisitantes(Request $request)
+    {
+        $query = Visitante::orderBy('id', 'desc');
+        if ($request->has('segmento')) {
+            $query->where('segmento', $request->segmento);
+        }
+        return $query->paginate(20);
+    }
+
+    public function crearCampana(Request $r)
+    {
+        $d = $r->validate([
+            'nombre' => 'required',
+            'segmento_objetivo' => 'required',
+            'descuento_porcentaje' => 'required|numeric|min:1|max:100',
+            'fecha_inicio' => 'required|date',
+            'fecha_fin' => 'required|date|after:fecha_inicio',
+        ]);
+        $c = Campana::create($d);
+        return response()->json($c, 201);
+    }
+
+    public function generarCupones(Campana $campana)
+    {
+        $visitantes = Visitante::where('segmento', $campana->segmento_objetivo)->get();
+        $generados = 0;
         
-        // Simulaci髇 de c醠culo RFM (Recency, Frequency, Monetary)
-        $datos = $locatarios->map(function ($loc, $index) {
-            // Generamos valores aleatorios simulados para la demo
-            $recencia = rand(1, 90); // D韆s desde la 鷏tima compra
-            $frecuencia = rand(1, 50); // N鷐ero de compras
-            $monto = rand(100, 5000); // Monto total gastado
+        foreach ($visitantes as $v) {
+            // Verificar si ya tiene cup贸n para esta campa帽a
+            $existe = Cupone::where('campana_id', $campana->id)->where('visitante_id', $v->id)->exists();
+            if (!$existe) {
+                Cupone::create([
+                    'campana_id' => $campana->id,
+                    'codigo' => 'CUP-' . strtoupper(uniqid()),
+                    'visitante_id' => $v->id,
+                    'descuento_porcentaje' => $campana->descuento_porcentaje,
+                    'estado' => 'activo',
+                    'fecha_emision' => now(),
+                    'fecha_vencimiento' => now()->addDays(30)
+                ]);
+                $generados++;
+            }
+        }
+        return response()->json(['message' => "Se generaron $generados cupones"]);
+    }
 
-            // Segmentaci髇 b醩ica
-            $segmento = 'Nuevo';
-            if ($monto > 3000 && $frecuencia > 20) $segmento = 'VIP';
-            else if ($monto > 1500) $segmento = 'Frecuente';
-            else if ($recencia > 60) $segmento = 'En Riesgo';
+    public function canjearCupon(Request $r)
+    {
+        $r->validate(['codigo' => 'required|exists:cupones,codigo']);
+        $cupon = Cupone::where('codigo', $r->codigo)->first();
 
-            return [
-                'id' => $loc->id,
-                'nombre' => $loc->nombre,
-                'rubro' => $loc->rubro,
-                'recencia' => $recencia,
-                'frecuencia' => $frecuencia,
-                'monto_total' => $monto,
-                'segmento' => $segmento
-            ];
-        });
+        if ($cupon->estado === 'canjeado') {
+            return response()->json(['message' => 'Este cup贸n ya fue canjeado'], 422);
+        }
+        if ($cupon->estado === 'vencido' || Carbon::parse($cupon->fecha_vencimiento)->isPast()) {
+            $cupon->update(['estado' => 'vencido']);
+            return response()->json(['message' => 'Este cup贸n est谩 vencido'], 422);
+        }
 
-        return response()->json($datos);
+        $cupon->update(['estado' => 'canjeado', 'fecha_canje' => now()]);
+        return response()->json(['message' => 'Cup贸n canjeado con 茅xito', 'cupon' => $cupon]);
     }
 }
